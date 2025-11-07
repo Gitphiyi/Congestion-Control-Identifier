@@ -1,7 +1,7 @@
 import socket, ssl
 
-host = "www.harrisonyork.com"
-endpoint = "/music"
+host = "www.linkedin.com"
+endpoint = "/"
 port = 443
 
 raw = socket.create_connection((host, port))

@@ -10,17 +10,18 @@ import numpy as np
 from statistics import mean
 
 # === CONFIG ===
-PCAP_FILE = "traces/test_bbr_1.pcap"
-OUT_PNG = "plots/bif_bbr_1.png"
-TIMEZONE = timezone(timedelta(hours=-5))
+PCAP_FILE = "traces/bbr_loss_2.pcap"
+OUT_PNG = "plots/bbr_loss_2.png"
+TIMEZONE = timezone(timedelta(0))
 DISPLAY_FILTER = "tcp"
 KEEP_PACKETS = True
 EVENT_LOOP = asyncio.new_event_loop()
 SENDER_IP = "67.159.78.206"
 RECEIVER_IP = "67.159.65.185"
 
-END_FRAME = 11967 # IPERF TEST END
+END_FRAME = 15000 # IPERF TEST END
 STREAM_NUMBER = 1
+TOTAL_DELAY = 100 # MS (50 ms on each sender, receiver)
 # =============
 
 
@@ -139,8 +140,133 @@ def merge_ack_data(
 
     return df_packets
 
+def merge_rtt_packets_timedelta(
+    df: pd.DataFrame,
+    time_col: str = "time",
+    bif_col: str = "bif_auto",
+    total_delay_ms: Optional[float] = TOTAL_DELAY
+) -> pd.DataFrame:
+    df_local = df.copy()
 
-def plot_bif(df: pd.DataFrame, bif_col: str = "bif_auto", time_col: str = "time", out_png: str = OUT_PNG):
+    # Ensure time column exists and is datetime
+    if time_col not in df_local.columns:
+        raise KeyError(f"time column {time_col!r} not found in DataFrame")
+    df_local[time_col] = pd.to_datetime(df_local[time_col])
+
+    delay_td = pd.to_timedelta(total_delay_ms, unit="ms")
+
+    df_local = df_local.sort_values(time_col).reset_index(drop=True)
+
+    # compute inter-packet time deltas
+    time_deltas = df_local[time_col].diff().fillna(pd.Timedelta(seconds=0))
+    # mark where a new window should start: when delta > delay_td
+    new_window = (time_deltas > delay_td).astype(int)
+    # create window ids by cumulative sum of new_window
+    window_id = new_window.cumsum()
+    df_local["_window_id"] = window_id
+    # aggregate per window
+    agg = df_local.groupby("_window_id").agg(
+        start=(time_col, "first"),
+        end=(time_col, "last"),
+        count=(time_col, "count"),
+        sum_bif=(bif_col, lambda s: s.fillna(0).sum()),
+        mean_bif=(bif_col, lambda s: s.fillna(0).mean()),
+        max_bif=(bif_col, lambda s: s.fillna(0).max())
+    ).reset_index(drop=False)
+
+    agg["duration_s"] = (agg["end"] - agg["start"]).dt.total_seconds()
+    agg["delay_used_ms"] = total_delay_ms
+    agg = agg.rename(columns={"_window_id": "window_id"})
+
+    # reorder columns
+    agg = agg[["window_id", "start", "end", "count", "duration_s", "sum_bif", "mean_bif", "max_bif", "delay_used_ms"]]
+
+    return agg
+
+def merge_packets_fixed_window_start(
+    df: pd.DataFrame,
+    time_col: str = "time",
+    bif_col: str = "bif_auto",
+    window_ms: float = 100.0
+) -> pd.DataFrame:
+    if df is None or df.shape[0] == 0:
+        return pd.DataFrame(columns=[
+            "window_id", "start", "end", "count", "duration_s",
+            "sum_bif", "mean_bif", "max_bif", "delay_used_ms"
+        ])
+
+    df_local = df.copy()
+    if time_col not in df_local.columns:
+        raise KeyError(f"time column {time_col!r} not found in DataFrame")
+    df_local[time_col] = pd.to_datetime(df_local[time_col])
+
+    if bif_col not in df_local.columns:
+        df_local[bif_col] = 0
+    df_local[bif_col] = df_local[bif_col].fillna(0)
+
+    df_local = df_local.sort_values(time_col).reset_index(drop=True)
+
+    try:
+        window_ms = float(window_ms)
+    except Exception:
+        window_ms = 100.0
+    window_td = pd.to_timedelta(window_ms, unit="ms")
+
+    # iterate rows and build windows
+    windows = []
+    cur_start = df_local.at[0, time_col]
+    cur_end = cur_start
+    cur_sum = float(df_local.at[0, bif_col])
+    cur_count = 1
+    cur_max = float(df_local.at[0, bif_col])
+
+    for idx in range(1, len(df_local)):
+        t = df_local.at[idx, time_col]
+        bif_val = float(df_local.at[idx, bif_col])
+
+        if t <= cur_start + window_td:
+            cur_end = t
+            cur_count += 1
+            cur_sum += bif_val
+            if bif_val > cur_max:
+                cur_max = bif_val
+        else:
+            windows.append({
+                "start": cur_start,
+                "end": cur_end,
+                "count": cur_count,
+                "sum_bif": cur_sum,
+                "mean_bif": (cur_sum / cur_count) if cur_count > 0 else 0.0,
+                "max_bif": cur_max
+            })
+            cur_start = t
+            cur_end = t
+            cur_sum = bif_val
+            cur_count = 1
+            cur_max = bif_val
+
+    # append final window
+    windows.append({
+        "start": cur_start,
+        "end": cur_end,
+        "count": cur_count,
+        "sum_bif": cur_sum,
+        "mean_bif": (cur_sum / cur_count) if cur_count > 0 else 0.0,
+        "max_bif": cur_max
+    })
+
+    # build result DataFrame
+    agg = pd.DataFrame(windows)
+    agg["duration_s"] = (agg["end"] - agg["start"]).dt.total_seconds()
+    agg["delay_used_ms"] = float(window_ms)
+    agg.insert(0, "window_id", range(len(agg)))
+
+    # reorder columns for readability
+    agg = agg[["window_id", "start", "end", "count", "duration_s", "sum_bif", "mean_bif", "max_bif", "delay_used_ms"]]
+
+    return agg
+
+def plot_bif_time(df: pd.DataFrame, bif_col: str = "bif_auto", time_col: str = "time", out_png: str = OUT_PNG):
     if df.empty:
         print("Empty DataFrame — nothing to plot.")
         return
@@ -164,6 +290,31 @@ def plot_bif(df: pd.DataFrame, bif_col: str = "bif_auto", time_col: str = "time"
     plt.savefig(out_png)
     plt.show()
     print(f"Saved plot to {out_png}")
+
+def plot_bif_window(df: pd.DataFrame,
+             bif_col: str = "mean_bif",
+             x_col: str = "window_id",
+             out_png: str = OUT_PNG):
+    if df.empty:
+        print("Empty DataFrame — nothing to plot.")
+        return
+
+    if x_col not in df.columns or bif_col not in df.columns:
+        raise KeyError(f"Required columns missing: {x_col} or {bif_col}")
+
+    plot_df = df[[x_col, bif_col]].dropna().copy()
+
+    plt.figure(figsize=(10, 4.5))
+    plt.plot(plot_df[x_col], plot_df[bif_col], drawstyle="steps-post")
+    plt.xlabel("RTT / Window index")
+    plt.ylabel("Bytes in flight")
+    plt.title(f"Bytes-in-Flight per RTT window ({bif_col})")
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig(out_png)
+    plt.show()
+    print(f"Saved plot to {out_png}")
+
 
 asyncio.set_event_loop(EVENT_LOOP)
 
@@ -189,6 +340,15 @@ median_rtt = df["rtt"].dropna().median()
 print(f"Mean RTT = {median_rtt*1000:.2f} ms")
 
 # print(merged_df[["number", "src", "dst", "len", "rtt"]].head(10).to_string())
-print(df[["number", "time", "src", "dst", "seq", "ack", "len", "rtt", "bif_auto"]].head(10).to_string())
+# print(df[["number", "time", "src", "dst", "seq", "ack", "len", "rtt", "bif_auto"]].head(40).to_string())
 
-plot_bif(df, bif_col="bif_auto", time_col="time", out_png=OUT_PNG)
+# agg_df = merge_rtt_packets_timedelta(df, "time", "bif_auto", TOTAL_DELAY)
+agg_df = merge_packets_fixed_window_start(df, "time", "bif_auto", TOTAL_DELAY)
+# print(agg_df[["window_id", "start", "end", "count", "duration_s", "sum_bif", "mean_bif", "max_bif", "delay_used_ms"]].head(40).to_string())
+
+# plot_bif_window(agg_df, bif_col="mean_bif", x_col="window_id", out_png=OUT_PNG)
+# plot_bif_time(df, "bif_auto", "time", OUT_PNG)
+
+#  skip slow start
+plot_bif_window(agg_df.iloc[10:90], bif_col="mean_bif", x_col="window_id", out_png=OUT_PNG)
+# plot_bif_window(agg_df, bif_col="mean_bif", x_col="window_id", out_png=OUT_PNG)

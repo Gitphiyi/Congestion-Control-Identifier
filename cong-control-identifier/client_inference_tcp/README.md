@@ -12,6 +12,10 @@ iperf3 -s
 ```
 Set the interface as eth0 and add a 50 ms delay for TCP with max bandwidth of 10 megabits per second. Then start iperf.
 
+Additional test templates (receiver)
+```
+sudo tc qdisc add dev $IF root netem delay 50ms 1ms loss 1% rate 5mbit
+```
 
 On sender:
 ```
@@ -30,6 +34,10 @@ Also add a 50 ms delay here, which does not factor into the RTT but separates ro
 In a separate terminal on sender:
 ```
 iperf3 -c <server-ip> -t 15
+```
+Force packets to be smaller:
+```
+iperf3 -c <server_ip> -t 15 -l 1K
 ```
 For the existing tests: 
 - Server IP = 67.159.65.185
@@ -61,3 +69,7 @@ Output will be a plot of BiF vs Time.
 Currently the numbers make sense: about 60000 bytes in flight = 480,000 bits in flight per 50 ms. 
 
 50 ms * 20 = 1 sec, so 480,000 bits per 50 ms = 9,600,000 bits per 1 second. Just under 10 mbits per second. 
+
+## Notes
+If poetry not found, need to update PATH:
+`export PATH="$HOME/.local/bin:$PATH"`

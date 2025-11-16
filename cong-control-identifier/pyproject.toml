@@ -2,7 +2,7 @@
 name = "cong-control-identifier"
 version = "0.1.0"
 description = ""
-authors = ["Philip Yi <py55@duke.edu>", "Harrison York <hpy@duke.edu>", ""]
+authors = ["Philip Yi <py55@duke.edu>", "Harrison York <hpy@duke.edu>", "Steven Peng <sgp26@duke.edu>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]

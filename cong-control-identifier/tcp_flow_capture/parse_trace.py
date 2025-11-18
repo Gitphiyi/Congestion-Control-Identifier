@@ -9,8 +9,8 @@ from typing import List, Dict, Any, Optional, Tuple
 import numpy as np
 from statistics import mean
 
-PCAP_FILE = "traces/cubic_ca_5.pcap"
-OUT_PNG = "plots/cubic_ca_5.png"
+PCAP_FILE = "traces/bic_8.pcap"
+OUT_PNG = "plots/bic_8.png"
 TIMEZONE = timezone(timedelta(0))
 DISPLAY_FILTER = "tcp"
 KEEP_PACKETS = True
@@ -22,7 +22,7 @@ RECEIVER_IP = "67.159.65.185"
 
 END_FRAME = 15000 # IPERF TEST END
 STREAM_NUMBER = 1 # 1
-TOTAL_DELAY = 30.2 # MS (50 ms on each sender, receiver)
+TOTAL_DELAY = 100 # MS (50 ms on each sender, receiver)
 
 
 def format_time(sniff_timestamp: str, tz: timezone=TIMEZONE) -> Optional[datetime]:
@@ -347,7 +347,7 @@ agg_df = merge_packets_fixed_window_start(df, "time", "bif_auto", TOTAL_DELAY)
 # print(agg_df[["window_id", "start", "end", "count", "duration_s", "sum_bif", "mean_bif", "max_bif", "delay_used_ms"]].head(40).to_string())
 
 # plot_bif_window(agg_df, bif_col="mean_bif", x_col="window_id", out_png=OUT_PNG)
-plot_bif_time(df.iloc[10:800], "bif_auto", "time", OUT_PNG)
+# plot_bif_time(df.iloc[10:800], "bif_auto", "time", OUT_PNG)
 
 #  skip slow start
-# plot_bif_window(agg_df.iloc[10:290], bif_col="mean_bif", x_col="window_id", out_png=OUT_PNG)
+plot_bif_window(agg_df.iloc[10:100], bif_col="mean_bif", x_col="window_id", out_png=OUT_PNG)

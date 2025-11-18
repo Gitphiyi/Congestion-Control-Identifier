@@ -14,19 +14,20 @@ Set the interface as eth0 and add a 50 ms delay for TCP with max bandwidth of 10
 
 Additional test templates (receiver)
 ```
+                                        delay   jitter  loss    max bandwidth
 sudo tc qdisc add dev $IF root netem delay 50ms 1ms loss 1% rate 5mbit
+sudo tc qdisc add dev $IF root netem delay 50ms 1ms loss 0.3% rate 5mbit
 ```
 
 On sender:
 ```
 sudo sysctl -w net.ipv4.tcp_congestion_control=cubic
-sudo sysctl -w net.ipv4.tcp_congestion_control=bbr
-sudo sysctl -w net.ipv4.tcp_congestion_control=reno
+available: reno cubic bbr vegas westwood bic htcp veno yeah lp illinois dctcp
 ```
 Choose the CCA to use.
 ```
-IF=eth0
-sudo tc qdisc add dev $IF root netem delay 50ms rate 10mbit
+export IF=eth0
+sudo tc qdisc add dev $IF root netem delay 50ms 1ms loss 0.3% rate 5mbit
 sudo tcpdump -i $IF -s 0 tcp and port 5201 -w traces/test_output.pcap -U
 ```
 Also add a 50 ms delay here, which does not factor into the RTT but separates round trips by 50 ms. Use tcpdump to track the TCP flow and save it in specified output file.
@@ -37,7 +38,8 @@ iperf3 -c <server-ip> -t 15
 ```
 Force packets to be smaller:
 ```
-iperf3 -c <server_ip> -t 15 -l 1K
+iperf3 -c <server_ip> -t 30 -l 1K
+iperf3 -c 67.159.65.185 -t 30 -l 1K
 ```
 For the existing tests: 
 - Server IP = 67.159.65.185

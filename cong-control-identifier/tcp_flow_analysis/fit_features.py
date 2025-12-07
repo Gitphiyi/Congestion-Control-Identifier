@@ -2,27 +2,24 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import mean_squared_error as mse
 import matplotlib.pyplot as plt
-from globals import BANDWIDTH_KBPS, BDP_FACTOR, FEATURE_NUM, MAX_DEG
+from globals import FEATURE_NUM, MAX_DEG
 
 """
-Polynomial fitting for features:
+polynomial fitting for features:
 
-1. Load BiF CSV from parse_trace.py output
-2. Apply smoothing
-3. Extract features
-4. Normalize and fit polynomials
+1. load BiF csv from parse_trace.py output
+2. apply smoothing
+3. extract features
+4. normalize (by max of feature) and fit polynomials
 """
 
 def load_csv_simple(csv_path):
     """
-    Load CSV and convert to simple lists.
-    Also extracts RTT from the CSV file!
-
-    Returns:
+    returns:
         time: list of relative timestamps (seconds)
-        data: list of BIF values (bif_auto)
+        data: list of BiF values (bif_auto)
         retrans: list of retransmission timestamps
-        measured_rtt: median RTT from CSV (seconds)
+        measured_rtt: median RTT from csv (seconds)
     """
     df = pd.read_csv(csv_path)
 
@@ -48,16 +45,8 @@ def load_csv_simple(csv_path):
         max_seq = max(max_seq, seq)
 
     # get RTT (median)
-    measured_rtt = None
-    if 'rtt' in df.columns:
-        rtt_values = df['rtt'].dropna()
-        if len(rtt_values) > 0:
-            measured_rtt = float(rtt_values.median())
-            print(f'Measured RTT (median): {measured_rtt*1000:.2f} ms')
-        else:
-            print('Warning: No RTT values found in CSV!')
-    else:
-        print('Warning: No RTT column in CSV!')
+    rtt_values = df['rtt'].dropna()
+    measured_rtt = float(rtt_values.median())
 
     print(f'NUM RETRANSMISSIONS: {len(retrans)}')
     return time, data, retrans, measured_rtt
@@ -127,13 +116,13 @@ def get_features(time, time_features):
     return index_features
 
 
-def normalize(time, data, rtt, bdp):
+def normalize(time, data, rtt):
     time = np.array(time)
     data = np.array(data)
 
     # normalize
     new_time = time / rtt
-    new_data = (data / bdp) * 100
+    new_data = (data / np.max(data)) * 100  # normalize by max of current feature
 
     # center around origin
     new_time -= np.min(new_time)
@@ -144,14 +133,14 @@ def normalize(time, data, rtt, bdp):
 
 def get_degree(time, data, p="n", max_deg=MAX_DEG):
     """
-    Fit polynomials of degree 1 to max_deg and return coefficients.
+    fit polynomials of degree 1 to max_deg and return coefficients.
 
-    Args:
+    args:
         time: normalized time array
         data: normalized BIF array
-        max_deg: Maximum polynomial degree (default from globals)
+        max_deg: max polynomial degree (default from globals)
 
-    Returns:
+    returns:
         (degree, coefficients, mse_list)
     """
     time = np.array(time)
@@ -173,7 +162,7 @@ def get_degree(time, data, p="n", max_deg=MAX_DEG):
         for d in range(max_deg):
             plt.plot(time, fit_net[d], label=f'Degree {d+1}', alpha=0.7)
         plt.xlabel('Normalized Time (time/RTT)')
-        plt.ylabel('Normalized BIF (BIF/BDP × 100)')
+        plt.ylabel('Normalized BIF (% of max)')
         plt.title('Polynomial Fits')
         plt.legend()
         plt.grid(True, alpha=0.3)
@@ -183,33 +172,20 @@ def get_degree(time, data, p="n", max_deg=MAX_DEG):
 
 
 # MAIN PIPELINE
-def process_single_feature(csv_path, bandwidth_kbps=BANDWIDTH_KBPS, bdp_factor=BDP_FACTOR,
-                          feature_num=FEATURE_NUM, max_deg=MAX_DEG, plot=False):
+def process_single_feature(csv_path, feature_num=FEATURE_NUM, max_deg=MAX_DEG, plot=False):
     """
-    Complete pipeline for a single CSV file.
-    RTT is automatically extracted from the CSV!
-
-    Args:
+    args:
         csv_path: Path to CSV from parse_trace.py (must contain 'rtt' column)
-        bandwidth_kbps: Bandwidth in kbps (default from globals)
-        bdp_factor: BDP multiplication factor (default from globals)
         feature_num: Which feature to extract (default from globals)
         max_deg: Maximum polynomial degree (default from globals)
         plot: Whether to plot the fit
 
-    Returns:
-        dict with keys: 'degree', 'coeff', 'error', 'data', 'time', 'rtt', 'bdp'
+    returns:
+        map: 'degree', 'coeff', 'error', 'data', 'time', 'rtt'
     """
 
     # Step 1: load CSV
     time, data, retrans, rtt = load_csv_simple(csv_path)
-
-    # get BDP using measured RTT and known bandwidth
-    bdp = (rtt * bandwidth_kbps * 1000 * bdp_factor) / 8
-
-    print(f'Using RTT: {rtt*1000:.2f} ms')
-    print(f'Using Bandwidth: {bandwidth_kbps} kbps ({bandwidth_kbps/1000:.1f} Mbit/s)')
-    print(f'Calculated BDP: {bdp:.2f} bytes')
 
     # Step 2: smooth
     smooth_time, smooth_data = smoothen(time, data, rtt)
@@ -228,8 +204,16 @@ def process_single_feature(csv_path, bandwidth_kbps=BANDWIDTH_KBPS, bdp_factor=B
     feature_time = smooth_time[start_idx:end_idx+1]
     feature_data = smooth_data[start_idx:end_idx+1]
 
+    # Step 4.5: trim to min-max range (remove tails)
+    min_idx = np.argmin(feature_data)
+    max_idx = np.argmax(feature_data)
+    trim_start = min(min_idx, max_idx)
+    trim_end = max(min_idx, max_idx)
+    feature_time = feature_time[trim_start:trim_end+1]
+    feature_data = feature_data[trim_start:trim_end+1]
+
     # Step 5: normalize
-    norm_time, norm_data = normalize(feature_time, feature_data, rtt, bdp)
+    norm_time, norm_data = normalize(feature_time, feature_data, rtt)
 
     # Step 6: fit polynomial
     degree, coeff, error = get_degree(norm_time, norm_data, p="y" if plot else "n", max_deg=max_deg)
@@ -241,18 +225,16 @@ def process_single_feature(csv_path, bandwidth_kbps=BANDWIDTH_KBPS, bdp_factor=B
         'data': norm_data,
         'time': norm_time,
         'rtt': rtt,
-        'bdp': bdp
     }
 
 
 # EXAMPLE USAGE
 if __name__ == "__main__":
-    csv_path = "tcp_flow_capture/traces/parsed/reno_2.csv"
+    csv_path = "../tcp_flow_capture/traces/parsed/cubic_1.csv"
 
     print("Testing polynomial fitting...")
     print("="*60)
 
-    # RTT auto-extracted from CSV, other params from globals.py
     result = process_single_feature(
         csv_path=csv_path,
         plot=True
@@ -263,4 +245,3 @@ if __name__ == "__main__":
     print(f"  Coefficients: {result['coeff']}")
     print(f"  MSE per degree: {result['error']}")
     print(f"  RTT: {result['rtt']*1000:.2f} ms")
-    print(f"  BDP: {result['bdp']:.2f} bytes")

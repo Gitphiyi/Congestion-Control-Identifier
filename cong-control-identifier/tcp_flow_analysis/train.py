@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 from train_features import train_classifier, save_model
-from globals import (TRAINING_FILES, MODEL_PATH, BANDWIDTH_KBPS,
-                     BDP_FACTOR, FEATURE_NUM, MAX_DEG)
+from globals import TRAINING_FILES, MODEL_PATH, FEATURE_NUM, MAX_DEG
 import os
 
 """
@@ -18,9 +17,6 @@ def main():
     csv_files_by_cca = TRAINING_FILES
 
     print(f"\nTraining Configuration:")
-    print(f"  RTT: auto-extracted from CSV files")
-    print(f"  Bandwidth: {BANDWIDTH_KBPS} kbps ({BANDWIDTH_KBPS/1000:.1f} Mbit/s)")
-    print(f"  BDP Factor: {BDP_FACTOR}")
     print(f"  Feature #: {FEATURE_NUM}")
     print(f"  Max Polynomial Degree: {MAX_DEG}")
 

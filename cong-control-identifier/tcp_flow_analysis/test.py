@@ -43,7 +43,6 @@ def classify_single_trace(csv_path, model_path=MODEL_PATH):
 
 def test_multiple_traces(model_path=MODEL_PATH):
     # test accuracy on multiple files and show confusion matrix
-
     # load trained model
     if not os.path.exists(model_path):
         print(f"\nError: Model not found at {model_path}")
@@ -63,24 +62,7 @@ def test_multiple_traces(model_path=MODEL_PATH):
 
 
 def main():
-    """
-    Main test function - choose what to do
-    """
-    import sys
-
-    if len(sys.argv) < 2:
-        print("Usage:")
-        print("  python test_simple.py <csv_file>           # Classify single file")
-        print("  python test_simple.py --accuracy           # Test accuracy on multiple files")
-        print("\nExample:")
-        print("  python test_simple.py tcp_flow_capture/traces/parsed/reno_2.csv")
-        return
-
-    if sys.argv[1] == "--accuracy":
-        test_multiple_traces()
-    else:
-        csv_path = sys.argv[1]
-        classify_single_trace(csv_path)
+    test_multiple_traces()
 
 
 if __name__ == "__main__":

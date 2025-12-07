@@ -3,42 +3,34 @@ import pandas as pd
 from scipy.stats import multivariate_normal as mvn
 from fit_features import process_single_feature
 from train_features import load_model
-from globals import BANDWIDTH_KBPS, BDP_FACTOR, FEATURE_NUM, MAX_DEG
+from globals import FEATURE_NUM, MAX_DEG
 
 """
 Testing/Classification!
 """
 
 
-def classify_trace(csv_path, gaussian_params, bandwidth_kbps=BANDWIDTH_KBPS,
-                   bdp_factor=BDP_FACTOR, feature_num=FEATURE_NUM, max_deg=MAX_DEG):
+def classify_trace(csv_path, gaussian_params, feature_num=FEATURE_NUM, max_deg=MAX_DEG):
     """
-    Classify a single CSV trace
+    classify a single csv trace
 
-    Args:
-        csv_path: Path to CSV file to classify
-        gaussian_params: Trained Gaussian parameters from train_features.py
+    args:
+        csv_path: path to csv file to classify
+        gaussian_params: trained Gaussian parameters from train_features.py
 
-    Returns:
+    returns:
         dict with keys: 'predicted_cca', 'probabilities', 'top3'
     """
 
     # get polynomial coefficients from the trace
     result = process_single_feature(
         csv_path=csv_path,
-        bandwidth_kbps=bandwidth_kbps,
-        bdp_factor=bdp_factor,
         feature_num=feature_num,
         max_deg=max_deg,
         plot=False
     )
 
     coeffs = result['coeff']
-
-    print(f"\n{'='*60}")
-    print(f"DEBUG: Polynomial coefficients from test trace:")
-    print(f"  {coeffs}")
-    print(f"{'='*60}")
 
     # compute probability under each CCA's Gaussian model
     probabilities = {}
@@ -89,17 +81,16 @@ def classify_trace(csv_path, gaussian_params, bandwidth_kbps=BANDWIDTH_KBPS,
     }
 
 
-def test_accuracy(csv_files_by_cca, gaussian_params, bandwidth_kbps=BANDWIDTH_KBPS,
-                  bdp_factor=BDP_FACTOR, feature_num=FEATURE_NUM, max_deg=MAX_DEG):
+def test_accuracy(csv_files_by_cca, gaussian_params, feature_num=FEATURE_NUM, max_deg=MAX_DEG):
     """
-    Test accuracy on multiple files and generate confusion matrix
+    test accuracy on multiple files and generate confusion matrix
 
-    Args:
-        csv_files_by_cca: Dict of {true_cca: [csv_paths]}
-        gaussian_params: Trained model
+    args:
+        csv_files_by_cca: map of {true_cca: [csv_paths]}
+        gaussian_params: trained model
 
-    Returns:
-        confusion_df: Pandas DataFrame with confusion matrix
+    returns:
+        confusion_df: df with confusion matrix
     """
 
     print("="*80)
@@ -117,8 +108,6 @@ def test_accuracy(csv_files_by_cca, gaussian_params, bandwidth_kbps=BANDWIDTH_KB
                 classification = classify_trace(
                     csv_path=csv_path,
                     gaussian_params=gaussian_params,
-                    bandwidth_kbps=bandwidth_kbps,
-                    bdp_factor=bdp_factor,
                     feature_num=feature_num,
                     max_deg=max_deg
                 )
@@ -156,7 +145,7 @@ def test_accuracy(csv_files_by_cca, gaussian_params, bandwidth_kbps=BANDWIDTH_KB
 
         matrix.append(row)
 
-    # make DataFrame
+    # make df
     columns = cca_names + ['Accuracy']
     df = pd.DataFrame(matrix, index=cca_names, columns=columns)
 
@@ -169,20 +158,19 @@ def test_accuracy(csv_files_by_cca, gaussian_params, bandwidth_kbps=BANDWIDTH_KB
 # EXAMPLE USAGE
 if __name__ == "__main__":
     # load trained model
-    gaussian_params = load_model("tcp_flow_analysis/models/cca_classifier.pkl")
+    gaussian_params = load_model("models/cca_classifier.pkl")
 
     # test files
     test_files = {
         'reno': [
-            '../tcp_flow_capture/traces/parsed/reno_test1.csv',
+            '../tcp_flow_capture/traces/parsed/reno_1.csv',
         ],
         'cubic': [
-            '../tcp_flow_capture/traces/parsed/cubic_test1.csv',
+            '../tcp_flow_capture/traces/parsed/cubic_1.csv',
         ],
     }
 
-    # Test accuracy (RTT auto-extracted from CSV!)
-    # All parameters use defaults from globals.py
+    # test acc
     confusion_df = test_accuracy(
         csv_files_by_cca=test_files,
         gaussian_params=gaussian_params

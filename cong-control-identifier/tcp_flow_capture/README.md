@@ -1,6 +1,14 @@
-# Client-side CCA Inference
+# TCP Flow Capturing
 
-## Running and capturing TCP flow
+## Using automated scripts
+`sudo su` Need superuser to edit network configuration.
+
+client.sh: `./client.sh <CCA> <loss_%> <delay_ms> <capture_file> <test_count>`
+
+server.sh: `./server.sh <CCA> <loss_%> <delay_ms>`
+
+
+## Manually running and capturing TCP flow
 
 Start Linux VMs, designate one as sender (client) and one as receiver (server).
 
@@ -25,6 +33,8 @@ sudo sysctl -w net.ipv4.tcp_congestion_control=cubic
 available: reno cubic bbr vegas westwood bic htcp veno yeah lp illinois dctcp
 ```
 Choose the CCA to use.
+
+
 ```
 export IF=eth0
 sudo tc qdisc add dev $IF root netem delay 50ms 1ms loss 0.3% rate 5mbit

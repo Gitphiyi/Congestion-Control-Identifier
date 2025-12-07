@@ -35,3 +35,13 @@ cd tcp_flow_analysis
 python test.py
 ```
 This generates a confusion matrix based on the traces provided in TESTING_FILES.
+
+
+## Running Flow Capture Testbench
+Start client and server VMs, SSH into each.
+
+Root user needed to edit network configuration: `sudo su` 
+
+client.sh: `./client.sh <CCA> <loss_%> <delay_ms> <capture_file> <test_count>`
+
+server.sh: `./server.sh <CCA> <loss_%> <delay_ms>`

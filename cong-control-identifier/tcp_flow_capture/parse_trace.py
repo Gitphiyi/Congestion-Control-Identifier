@@ -9,14 +9,9 @@ from typing import List, Dict, Any, Optional, Tuple
 import numpy as np
 from statistics import mean
 
-<<<<<<< Updated upstream
-PCAP_FILE = "traces/bic_8.pcap"
-OUT_PNG = "plots/bic_8.png"
-=======
 # === CONFIG ===
 PCAP_FILE = "traces/cubic_11_2.pcap"
 OUT_PNG = "plots/cubic_11_2.png"
->>>>>>> Stashed changes
 TIMEZONE = timezone(timedelta(0))
 DISPLAY_FILTER = "tcp"
 KEEP_PACKETS = True
@@ -356,9 +351,5 @@ agg_df = merge_packets_fixed_window_start(df, "time", "bif_auto", TOTAL_DELAY)
 # plot_bif_time(df.iloc[10:800], "bif_auto", "time", OUT_PNG)
 
 #  skip slow start
-<<<<<<< Updated upstream
-plot_bif_window(agg_df.iloc[10:100], bif_col="mean_bif", x_col="window_id", out_png=OUT_PNG)
-=======
 plot_bif_window(agg_df.iloc[10:290], bif_col="mean_bif", x_col="window_id", out_png=OUT_PNG)
 # plot_bif_window(agg_df, bif_col="mean_bif", x_col="window_id", out_png=OUT_PNG)
->>>>>>> Stashed changes

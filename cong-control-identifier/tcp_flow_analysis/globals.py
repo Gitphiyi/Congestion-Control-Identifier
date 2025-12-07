@@ -13,8 +13,8 @@ BDP_FACTOR = 2         # BDP multiplication factor (measured from actual traces)
 # ============================================================================
 # FEATURE EXTRACTION PARAMETERS
 # ============================================================================
-FEATURE_NUM = 0        # Which feature to use (0 = first, most stable)
-MAX_DEG = 5            # Maximum polynomial degree for fitting
+FEATURE_NUM = 5        # Which feature to use
+MAX_DEG = 3            # Maximum polynomial degree for fitting
 
 # ============================================================================
 # PATHS
@@ -43,24 +43,24 @@ TRAINING_FILES = {
     #     '../tcp_flow_capture/traces/parsed/vegas_3.csv',
     #     '../tcp_flow_capture/traces/parsed/vegas_4.csv',
     # ],
-    # 'bbr': [
-    #     '../tcp_flow_capture/traces/parsed/bbr_1.csv',
-    #     '../tcp_flow_capture/traces/parsed/bbr_2.csv',
-    #     '../tcp_flow_capture/traces/parsed/bbr_3.csv',
-    #     '../tcp_flow_capture/traces/parsed/bbr_4.csv',
-    # ],
+    'bbr': [
+        '../tcp_flow_capture/traces/parsed/bbr_1.csv',
+        '../tcp_flow_capture/traces/parsed/bbr_2.csv',
+        '../tcp_flow_capture/traces/parsed/bbr_3.csv',
+        '../tcp_flow_capture/traces/parsed/bbr_4.csv',
+    ],
     'bic': [
         '../tcp_flow_capture/traces/parsed/bic_1.csv',
         '../tcp_flow_capture/traces/parsed/bic_2.csv',
         '../tcp_flow_capture/traces/parsed/bic_3.csv',
         '../tcp_flow_capture/traces/parsed/bic_4.csv',
     ],
-    'htcp': [
-        '../tcp_flow_capture/traces/parsed/htcp_1.csv',
-        '../tcp_flow_capture/traces/parsed/htcp_2.csv',
-        '../tcp_flow_capture/traces/parsed/htcp_3.csv',
-        '../tcp_flow_capture/traces/parsed/htcp_4.csv',
-    ],
+    # 'htcp': [
+    #     '../tcp_flow_capture/traces/parsed/htcp_1.csv',
+    #     '../tcp_flow_capture/traces/parsed/htcp_2.csv',
+    #     '../tcp_flow_capture/traces/parsed/htcp_3.csv',
+    #     '../tcp_flow_capture/traces/parsed/htcp_4.csv',
+    # ],
     # 'westwood': [
     #     '../tcp_flow_capture/traces/parsed/westwood_1.csv',
     #     '../tcp_flow_capture/traces/parsed/westwood_2.csv',
@@ -80,15 +80,15 @@ TESTING_FILES = {
     # 'vegas': [
     #     '../tcp_flow_capture/traces/parsed/vegas_5.csv',
     # ],
-    # 'bbr': [
-    #     '../tcp_flow_capture/traces/parsed/bbr_5.csv',
-    # ],
+    'bbr': [
+        '../tcp_flow_capture/traces/parsed/bbr_5.csv',
+    ],
     'bic': [
         '../tcp_flow_capture/traces/parsed/bic_5.csv',
     ],
-    'htcp': [
-        '../tcp_flow_capture/traces/parsed/htcp_5.csv',
-    ],
+    # 'htcp': [
+    #     '../tcp_flow_capture/traces/parsed/htcp_5.csv',
+    # ],
     # 'westwood': [
     #     '../tcp_flow_capture/traces/parsed/westwood_5.csv',
     # ],

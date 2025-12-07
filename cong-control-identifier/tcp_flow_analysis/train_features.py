@@ -1,25 +1,22 @@
 import numpy as np
 import pickle
 from fit_features import process_single_feature
-from globals import BANDWIDTH_KBPS, BDP_FACTOR, FEATURE_NUM, MAX_DEG, REGULARIZATION
+from globals import FEATURE_NUM, MAX_DEG, REGULARIZATION
 
 """
 Build Gaussian classifier from CSV training files
 """
 
 
-def train_classifier(csv_files_by_cca, bandwidth_kbps=BANDWIDTH_KBPS, bdp_factor=BDP_FACTOR,
-                     feature_num=FEATURE_NUM, max_deg=MAX_DEG):
+def train_classifier(csv_files_by_cca, feature_num=FEATURE_NUM, max_deg=MAX_DEG):
     """
-    Args:
-        csv_files_by_cca: Dict of {cca_name: [list of CSV paths]}
-        bandwidth_kbps: Bandwidth in kbps (default: 5000 = 5 Mbit/s)
-        bdp_factor: BDP factor
-        feature_num: Which feature to use (0 = first)
-        max_deg: Maximum polynomial degree
+    args:
+        csv_files_by_cca: map of {cca_name: [list of CSV paths]}
+        feature_num: which feature to use (0 = first)
+        max_deg: max polynomial degree
 
-    Returns:
-        gaussian_params: Dict of {cca_name: {'mean': [...], 'covar': [...]}}
+    returns:
+        gaussian_params: map of {cca_name: {'mean': [...], 'covar': [...]}}
     """
 
     print("="*80)
@@ -37,12 +34,11 @@ def train_classifier(csv_files_by_cca, bandwidth_kbps=BANDWIDTH_KBPS, bdp_factor
             try:
                 result = process_single_feature(
                     csv_path=csv_path,
-                    bandwidth_kbps=bandwidth_kbps,
-                    bdp_factor=bdp_factor,
                     feature_num=feature_num,
                     max_deg=max_deg,
                     plot=False
                 )
+                print(result)
                 cca_coefficients[cca_name].append(result['coeff'])
                 print(f"  DONE: {csv_path}")
 
@@ -74,9 +70,14 @@ def train_classifier(csv_files_by_cca, bandwidth_kbps=BANDWIDTH_KBPS, bdp_factor
         identity = np.identity(len(mean))
         covar_diag = covar_full * identity
 
+        # shrink variance adaptively to avoid high variance flows dominating
+        total_variance = np.sum(np.diag(covar_diag))
+        scaling_factor = 1.0 / (1.0 + total_variance * 1.5)
+        covar_diag_scaled = covar_diag * scaling_factor
+
         # add regularization to prevent singular matrices
         # this adds a small value to diagonal elements to ensure numerical stability
-        covar_diag_reg = covar_diag + REGULARIZATION * identity
+        covar_diag_reg = covar_diag_scaled + REGULARIZATION * identity
 
         gaussian_params[cca_name] = {
             'mean': mean,
@@ -110,10 +111,11 @@ def load_model(filename="cca_model.pkl"):
 
 # EXAMPLE USAGE
 if __name__ == "__main__":
-    # Example training data
+    # training data
     csv_files_by_cca = {
         'reno': [
             '../tcp_flow_capture/traces/parsed/reno_1.csv',
+            '../tcp_flow_capture/traces/parsed/reno_2.csv',
         ],
         'cubic': [
             '../tcp_flow_capture/traces/parsed/cubic_1.csv',
@@ -127,4 +129,4 @@ if __name__ == "__main__":
     )
 
     # save model
-    save_model(gaussian_params, "tcp_flow_analysis/models/cca_classifier.pkl")
+    save_model(gaussian_params, "models/cca_classifier.pkl")
